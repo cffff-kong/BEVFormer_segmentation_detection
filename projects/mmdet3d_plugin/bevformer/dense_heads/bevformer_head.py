@@ -68,9 +68,13 @@ class BevFeatureSlicer(nn.Module):
             self.map_x = torch.arange(
                 map_bev_start_position[0], map_grid_conf['xbound'][1], map_bev_resolution[0])
 
+            # self.map_y = torch.arange(
+            #     map_bev_start_position[1], map_grid_conf['ybound'][1], map_bev_resolution[1])
             self.map_y = torch.arange(
-                map_bev_start_position[1], map_grid_conf['ybound'][1], map_bev_resolution[1])
-
+                map_grid_conf['ybound'][1] - map_bev_resolution[1],
+                map_bev_start_position[1] - map_bev_resolution[1],
+                -map_bev_resolution[1]
+            )
             # convert to normalized coords
             self.norm_map_x = self.map_x / (- bev_start_position[0])
             self.norm_map_y = self.map_y / (- bev_start_position[1])
@@ -279,7 +283,8 @@ class BEVFormerHead(DETRHead):
         if self.task.get('seg'):
             # bev_queries(Tensor): (bev_h * bev_w, bs, c) 这是一个非常重要的地方，但是感觉这样的操作并无不同
             # 最初不做转换的版本，直接resize epoch 10 miou 0.07，这个肯定是不正确的 ❌
-            # seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 0, 1)
+            # 修改了BevFeatureSlice里的map_y生成逻辑之后可以直接使用这里而不用做flip
+            seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 0, 1)
             
             # 将bev空间特征从lidar系转换到图像系 
             
@@ -292,8 +297,8 @@ class BEVFormerHead(DETRHead):
             #seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 1, 0)
             
             # TEST 02 转换HW维度，再竖直翻转 small_seg_trans_flip.py 都一样配置，只是区分了对其进行的操作。epoch3 40.3%miou
-            seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 1, 0)  # b, c , w, h
-            seg_bev = torch.flip(seg_bev, dims=[2])
+            # seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 1, 0)  # b, c , w, h
+            # seg_bev = torch.flip(seg_bev, dims=[2])
 
             # 测试下方向
             #seg_bev = bev_embed.reshape(self.bev_h, self.bev_w, bs, -1).permute(2, 3, 0, 1)
